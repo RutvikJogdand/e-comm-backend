@@ -10,6 +10,9 @@ const productsData = require("./products")
 // Models:
 const Users = require("./models/users_model")
 const Products = require("./models/products_model")
+// Routes:
+const userRoute = require("./routes/users_routes");
+
 
 
 dotenv.config()
@@ -20,6 +23,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use( cors() )
 app.use( express.json() )
+
+app.use("/api/user", userRoute);
 
 const uri = `mongodb+srv://${process.env.USERNAME2}:${process.env.PASSWORD}@cluster0.celbe.mongodb.net/?retryWrites=true&w=majority`
 
@@ -33,12 +38,18 @@ mongoose.connect(
 
 const db = mongoose.createConnection(uri);
 db.once("open", async (req, result) => {
-    console.log(req)
   if ((await Users.countDocuments().exec()) > 0) {
     return;
   }
    await Users.insertMany(usersData)
   
+});
+
+db.once("open", async (req, result) => {
+  if ((await Products.countDocuments().exec()) > 0) {
+    return;
+  }
+   await Products.insertMany(productsData)
 });
 
 app.listen(5000, () => {

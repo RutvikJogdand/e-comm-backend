@@ -6,7 +6,9 @@ const users = [
       email: "rkeddey0@engadget.com",
       gender: "Female",
       cart: [],
-      no_of_orders: 0
+      no_of_orders: 0,
+      total:0,
+      ordersHistory: []
     },
     {
       id: "01HGXMEAC37A4R583EH61F70V4",
@@ -15,7 +17,9 @@ const users = [
       email: "tipsly1@jiathis.com",
       gender: "Female",
       cart: [],
-      no_of_orders: 0
+      no_of_orders: 0,
+      total:0,
+      ordersHistory: []
     },
     {
       id: "01HGXMEAC3E3RETBW25YJD7AJ7",
@@ -24,7 +28,9 @@ const users = [
       email: "mbotton2@nps.gov",
       gender: "Male",
       cart: [],
-      no_of_orders: 0
+      no_of_orders: 0,
+      total:0,
+      ordersHistory: []
     }
   ]
 

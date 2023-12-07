@@ -36,7 +36,18 @@ const userSchema = new mongoose.Schema({
   no_of_orders: {
     type: Number,
     default: 0,
+    min: 0
   },
+  total:{
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  ordersHistory:{
+    type: mongoose.Mixed,
+    default:[]
+  }
+
 }, {
   versionKey: false,
 });
