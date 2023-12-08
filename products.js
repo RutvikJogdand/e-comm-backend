@@ -3,21 +3,21 @@ const products = [
       "product_id": 1,
       "product_name": "Beef - Ox Tongue",
       "price": 635,
-      "stock": 73,
+      "stock": 80,
       "product_image": "http://dummyimage.com/221x100.png/dddddd/000000"
     },
     {
       "product_id": "01HGXN5PN8565TF0W27P7BV0FZ",
       "product_name": "Milk - Skim",
       "price": 992,
-      "stock": 49,
+      "stock": 80,
       "product_image": "http://dummyimage.com/230x100.png/cc0000/ffffff"
     },
     {
       "product_id": "01HGXN5PN8G68T9Q68MWR4DCS2",
       "product_name": "Cookie Dough - Peanut Butter",
       "price": 312,
-      "stock": 75,
+      "stock": 80,
       "product_image": "http://dummyimage.com/120x100.png/5fa2dd/ffffff"
     },
     {

@@ -1,5 +1,6 @@
 const Users = require("../models/users_model")
 const Products = require("../models/products_model");
+const mongoose = require('mongoose');
 
 const findUser = async (req, res) => {
     const {user_id} = req.query
@@ -16,50 +17,66 @@ const findUser = async (req, res) => {
 }
 
 const addToCart = async (req, res) => {
-    const { user_id, products_arr } = req.body; //get the parameters sent by the frontend from the request body
+    const { user_id, products_arr } = req.body;
+
+    const session = await mongoose.startSession(); // This will help keep consistency. If any operation fails within this query then no changes will happen anywhere
+    session.startTransaction();
+
     try {
-        const user = await Users.findOne({ //finds the user based on id
-          id: user_id,
-        }).then(res => res).catch(err => err);
+        const user = await Users.findOne({ id: user_id }).session(session); //important to add the session in each query to keep track of if it fails anywhere
 
-        if(!user){ //send a error message in case user is not found
-            res.status(404).send("User not found")
-            return
+        if (!user) {
+            res.status(404).send("User not found");
+            return;
         }
 
-        const totalSum = products_arr.reduce((accumulator, product) => { //get total
-            console.log('inside adder')
-            return accumulator +(product.price * product.quantity);
-          }, 0); 
-
-        if((user.no_of_orders + 1)%5 === 0){ // check if order number is divisble by 5
-            await Users.updateOne( // update the concerned user with the products in his/her cart
-                {id: user_id},
-                {$set: {cart: [...user.cart, ...products_arr], no_of_orders: user.no_of_orders + 1, total: totalSum*0.1}} // give discount of 10% for every 5th order
-            )
-        }
-        if((user.no_of_orders + 1)%5 !== 0){
-            await Users.updateOne( // update the concerned user with the products in his/her cart
-                {id: user_id},
-                {$set: {cart: [...user.cart, ...products_arr], no_of_orders: user.no_of_orders + 1, total: totalSum}}
-            )
+        const productUpdates = products_arr.map(item => ({ //getting an array of required updates ready. Update each product's quantity with reference from user's cart
+            updateOne: {
+                filter: { product_id: item.product_id },
+                update: { $inc: { stock: -item.quantity } }
+            }
+        }));
+        const updatedProducts = await Products.bulkWrite(productUpdates, { session });
+        if (productUpdates.length !== updatedProducts.matchedCount && productUpdates.length !== updatedProducts.modifiedCount ) {
+            throw new Error("Error updating cart with one or more products");
         }
 
-        for (const item of products_arr) { //looping through the array of products added to the cart by the user
-          const { product_id, quantity } = item; //destructuring the values needed from each product in the cart
-    
-            // Updating the quantity of the specified product:
-            await Products.updateOne(
-            { product_id: product_id }, //finding each product by id
-                { $inc: { stock: -quantity }} // doing stock = stock -quantity for each product
-            );
-        }
-        res.status(200).send('Products updated successfully'); //success message 
-        
+        const totalSum = products_arr.reduce((accumulator, product) => {
+            return accumulator + product.price * product.quantity;
+        }, 0);
+
+        const discount = (user.no_of_orders + 1) % 5 === 0;
+        const discountTotal = discount ? totalSum * 0.1 : totalSum;
+
+        // Update the user with the products in the cart and ordersHistory
+        await Users.updateOne(
+            { id: user_id },
+            {
+                $set: {
+                    cart: [...products_arr],
+                    no_of_orders: user.no_of_orders + 1,
+                    total: discountTotal,
+                    ordersHistory: [
+                        ...user.ordersHistory,
+                        { products: products_arr, totalSum: totalSum, discount: discount }
+                    ]
+                }
+            },
+            { session }
+        );
+
+        // If everything is successful, commit the transaction
+        await session.commitTransaction();
+        session.endSession();
+
+        res.status(200).send('Products updated successfully');
     } catch (error) {
-        res.status(500).send("Error updating products") //error message
+        console.error(error);
+        // If an error occurs, abort the transaction
+        await session.abortTransaction();
+        session.endSession();
+        res.status(500).send("Error updating products");
     }
-        
 };
 
 module.exports = {
