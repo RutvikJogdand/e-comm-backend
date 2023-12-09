@@ -2,6 +2,9 @@ const Users = require("../models/users_model")
 const Products = require("../models/products_model");
 const mongoose = require('mongoose');
 
+
+const discountCodes = ["FIRST10", "SECOND10", "THIRD10", "APPLY10"]
+
 const findUser = async (req, res) => {
     const {user_id} = req.query
     try {
@@ -45,9 +48,6 @@ const addToCart = async (req, res) => {
             return accumulator + product.price * product.quantity;
         }, 0);
 
-        const discount = (user.no_of_orders + 1) % 5 === 0;
-        const discountTotal = discount ? totalSum * 0.1 : totalSum;
-
         // Update the user with the products in the cart and ordersHistory
         await Users.updateOne(
             { id: user_id },
@@ -55,10 +55,10 @@ const addToCart = async (req, res) => {
                 $set: {
                     cart: [...products_arr],
                     no_of_orders: user.no_of_orders + 1,
-                    total: discountTotal,
+                    total: totalSum,
                     ordersHistory: [
                         ...user.ordersHistory,
-                        { products: products_arr, totalSum: totalSum, discount: discount }
+                        { products: products_arr, totalSum: totalSum }
                     ]
                 }
             },
@@ -79,7 +79,47 @@ const addToCart = async (req, res) => {
     }
 };
 
+const checkout = async(req, res) => {
+    const {totalSum, user_id, discount_code} = req.body;
+
+    const user = Users.findOne({id: user_id})
+
+    if((user.no_of_orders + 1)%5 === 0){
+
+        if(user.no_of_orders + 1 === 5){
+            if(discount_code !== discountCodes[0]){
+                res.send("Sorry this discount code is not applicable right now, please choose another one")
+            }
+    
+            totalSum = totalSum * 0.1
+            await Users.update({id: user_id},{$set:{total: totalSum}})
+        }
+        if(user.no_of_orders + 1 === 10){
+            if(discount_code !== discountCodes[1]){
+                res.send("Sorry this discount code is not applicable right now, please choose another one")
+            }
+    
+            totalSum = totalSum * 0.1
+            await Users.update({id: user_id},{$set:{total: totalSum}})
+        }
+        if(user.no_of_orders + 1 === 15){
+            if(discount_code !== discountCodes[2]){
+                res.send("Sorry this discount code is not applicable right now, please choose another one")
+            }
+    
+            totalSum = totalSum * 0.1
+            await Users.update({id: user_id},{$set:{total: totalSum}})
+        }
+        if((user.no_of_orders + 1) > 15 ){
+            totalSum = totalSum * 0.1
+            await Users.update({id: user_id},{$set:{total: totalSum}})
+            res.send("Discount code applied!")
+        }
+    }
+}
+
 module.exports = {
     findUser,
-    addToCart
+    addToCart,
+    checkout
 }

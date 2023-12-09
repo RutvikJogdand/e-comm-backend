@@ -12,11 +12,9 @@ const Users = require("./models/users_model")
 const Products = require("./models/products_model")
 // Routes:
 const userRoute = require("./routes/users_routes");
-
-
+const productsRoute = require("./routes/products_routes")
 
 dotenv.config()
-
 
 const app = express()
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -25,6 +23,7 @@ app.use( cors() )
 app.use( express.json() )
 
 app.use("/api/user", userRoute);
+app.use("/api/products", productsRoute);
 
 const uri = `mongodb+srv://${process.env.USERNAME2}:${process.env.PASSWORD}@cluster0.celbe.mongodb.net/?retryWrites=true&w=majority`
 
