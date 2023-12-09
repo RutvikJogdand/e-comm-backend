@@ -2,8 +2,33 @@ const Users = require("../models/users_model")
 const Products = require("../models/products_model");
 const mongoose = require('mongoose');
 
+function isValidDiscountCode(code) {
 
-const discountCodes = ["FIRST10", "SECOND10", "THIRD10", "APPLY10"]
+    if (!code.startsWith('GROCERY')) {
+        return false;
+    }
+
+    const numberPart = parseInt(code.substring('GROCERY'.length), 10);
+    return numberPart >= 100 && numberPart <= 110;
+}
+
+const generatedCodes = new Set();
+const maxCodes = 110;
+const minCodes = 100;
+
+function generateUniqueDiscountCode() {
+    if (generatedCodes.size >= (maxCodes - minCodes + 1)) {
+        throw new Error("All discount codes have been generated");
+    }
+
+    let randomCode;
+    do {
+        randomCode = Math.floor(Math.random() * (maxCodes - minCodes + 1)) + minCodes;
+    } while (generatedCodes.has(randomCode));
+
+    generatedCodes.add(randomCode);
+    return "GROCERY" + randomCode;
+}
 
 const findUser = async (req, res) => {
     const {user_id} = req.query
@@ -36,12 +61,12 @@ const addToCart = async (req, res) => {
         const productUpdates = products_arr.map(item => ({ //getting an array of required updates ready. Update each product's quantity with reference from user's cart
             updateOne: {
                 filter: { product_id: item.product_id },
-                update: { $inc: { stock: -item.quantity } }
+                update: { $inc: { stock: Number(-item.quantity) } }
             }
         }));
         const updatedProducts = await Products.bulkWrite(productUpdates, { session });
         if (productUpdates.length !== updatedProducts.matchedCount && productUpdates.length !== updatedProducts.modifiedCount ) {
-            throw new Error("Error updating cart with one or more products");
+            res.status(400).send("Error updating cart with one or more products because a product you have selected might not exist");
         }
 
         const totalSum = products_arr.reduce((accumulator, product) => {
@@ -71,7 +96,7 @@ const addToCart = async (req, res) => {
 
         res.status(200).send('Products updated successfully');
     } catch (error) {
-        console.error(error);
+        console.log(error);
         // If an error occurs, abort the transaction
         await session.abortTransaction();
         session.endSession();
@@ -82,39 +107,86 @@ const addToCart = async (req, res) => {
 const checkout = async(req, res) => {
     const {totalSum, user_id, discount_code} = req.body;
 
-    const user = Users.findOne({id: user_id})
+    const user = await Users.findOne({id: user_id})
 
-    if((user.no_of_orders + 1)%5 === 0){
+    if(!user){
+        res.status(404).send("User not found")
+    }
 
-        if(user.no_of_orders + 1 === 5){
-            if(discount_code !== discountCodes[0]){
-                res.send("Sorry this discount code is not applicable right now, please choose another one")
-            }
-    
-            totalSum = totalSum * 0.1
-            await Users.update({id: user_id},{$set:{total: totalSum}})
+    const discount = user.no_of_orders % 5 === 0;
+    const discountTotal = discount ? totalSum * 0.1 : totalSum;
+
+    if(discount_code === null || discount_code === ''){
+        res.send("You have not applied any discount");
+    }
+    if (discount_code && !isValidDiscountCode(discount_code)) {
+        res.send("Invalid Discount code");
+    }
+    if(discount_code && isValidDiscountCode(discount_code) && !discount){
+        res.send("Not eligible for discount yet");
+    }
+    if(discount_code && isValidDiscountCode(discount_code) && discount){
+        await Users.update({id: user_id},{$set:{total: discountTotal}});
+
+        user.total = discountTotal;
+
+        res.send("Discount Code Applied");
+    }  
+}
+
+const generateOneDiscountCode = async(req, res) => {
+    const {user_id} = req.body
+
+    try {
+        const user = await Users.findOne({id: user_id})
+
+        if(!user){
+            res.status(404).send("User not found")
         }
-        if(user.no_of_orders + 1 === 10){
-            if(discount_code !== discountCodes[1]){
-                res.send("Sorry this discount code is not applicable right now, please choose another one")
-            }
-    
-            totalSum = totalSum * 0.1
-            await Users.update({id: user_id},{$set:{total: totalSum}})
+
+        if(user.no_of_orders % 5 === 0){
+            const discountCode = await generateUniqueDiscountCode();
+
+            res.status(200).json(discountCode);
         }
-        if(user.no_of_orders + 1 === 15){
-            if(discount_code !== discountCodes[2]){
-                res.send("Sorry this discount code is not applicable right now, please choose another one")
-            }
-    
-            totalSum = totalSum * 0.1
-            await Users.update({id: user_id},{$set:{total: totalSum}})
+        
+    } catch (error) {
+        res.status(500).send("Something went wrong while fetching discount code");
+    }
+}
+
+function generateDiscountCodes(start = 100, end = 110) { //To be called only when user is eligible for discount
+    const codes = [];
+    for (let i = start; i <= end; i++) {
+        codes.push('GROCERY' + i);
+    }
+    return codes;
+}
+
+const getUserDetailsForAdmin = async(req, res) => {
+    const {user_id} = req.body;
+
+    const list_of_discount_codes = await generateDiscountCodes()
+    try {
+
+        if(!user_id){
+            res.status(404).send("This user does not exist");
         }
-        if((user.no_of_orders + 1) > 15 ){
-            totalSum = totalSum * 0.1
-            await Users.update({id: user_id},{$set:{total: totalSum}})
-            res.send("Discount code applied!")
+        const user = await Users.findOne({id: user_id});
+
+        if(!user){
+            res.status(404).send("User not found");
         }
+
+        res.send(200).json({
+            items_purchased: user.cart.length,
+            totalAmt: user.total,
+            discountedAmt: user.no_of_orders % 5 === 0? (user.total*0.1) : user.total,
+            list_of_discount_codes: list_of_discount_codes
+        })
+        
+    } catch (error) {
+        res.status(500).send("Server error while fetching user details");
     }
 }
 
