@@ -241,11 +241,16 @@ const getUserDetailsForAdmin = async(req, res) => {
             return
         }
 
+        if(user && user.no_of_orders === 0){
+            res.status(400).send("User has not checked out");
+            return
+        }
+
         res.status(200).json({
            data: {
             items_purchased: user.cart.length,
             totalAmt: `$${user.total/100}`,
-            discountedAmt: user.no_of_orders % 5 === 0? `$${(user.total*0.1)}` : `${user.total}`,
+            discountedAmt: user.no_of_orders % 5 === 0? `$${(user.total - (user.total* 0.1))/100}` : `${user.total/100}`,
             list_of_discount_codes: list_of_discount_codes
             }
         })
