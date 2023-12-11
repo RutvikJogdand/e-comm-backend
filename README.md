@@ -32,7 +32,7 @@ The API endpoints provided by this backend include:
 
 ## Testing
 
-For testing, please navigate to: tests/controllers and run: <b> npx jest <file>.test.js </b>
+For testing, please navigate to: tests/controllers and run: <b> npx jest *filename*.test.js </b>
 
 ## Features
 - CRUD operations for products.
