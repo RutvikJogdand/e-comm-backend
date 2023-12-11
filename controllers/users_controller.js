@@ -111,7 +111,6 @@ const addToCart = async (req, res) => {
 
         res.status(200).send('Products updated successfully');
     } catch (error) {
-        console.log(error);
         // If an error occurs, abort the transaction
         await session.abortTransaction();
         session.endSession();
@@ -126,12 +125,13 @@ const checkout = async(req, res) => {
         const user = await Users.findOne({id: user_id})
     
         if(!user){
-            res.status(404).send("User not found")
+            res.status(404).send("User not found") //No user found
             return
         }
         if(user && discount_code === ''){
+            await Users.updateOne({id: user_id},{$set:{no_of_orders: user.no_of_orders + 1}});
             res.status(200).json({
-                message: "No discount applied",
+                message: "No discount applied", //If no discount code is recieved from the backend
                 data: user
             })
             return 
@@ -142,8 +142,7 @@ const checkout = async(req, res) => {
         const discountTotal = discount ? user.total -( user.total * 0.1) : user.total;
     
         const isDiscount = await isValidDiscountCode(discount_code)
-        console.log('is discount', isDiscount, discount)
-        if (discount_code && !isDiscount) {
+        if (discount_code && !isDiscount) { //if discount code is provided but not valid
             await Users.updateOne({id: user_id},{$set:{total: discountTotal, no_of_orders: user.no_of_orders + 1}});
             res.status(200).json({
                 message: "Invalid Discount code",
@@ -151,7 +150,7 @@ const checkout = async(req, res) => {
             });
             return
         }
-        if(discount_code && !isDiscount && discount){
+        if(discount_code && !isDiscount && discount){ //discount code provided, its not valid and user is eligible for discount
             await Users.updateOne({id: user_id},{$set:{total: discountTotal, no_of_orders: user.no_of_orders + 1}});
             res.status(200).json({
                 message: "Eligible for discount but no discount code applied",
@@ -159,7 +158,7 @@ const checkout = async(req, res) => {
             })
             return
         }
-        if(discount_code && isDiscount && !discount){
+        if(discount_code && isDiscount && !discount){ //discount code provided, its not valid and user is not eligible for discount
             await Users.updateOne({id: user_id},{$set:{total: discountTotal, no_of_orders: user.no_of_orders + 1}});
             res.status(200).json({
                 message: "Not eligible for discount yet",
@@ -167,10 +166,10 @@ const checkout = async(req, res) => {
             });
             return
         }
-        if(discount_code && isDiscount && discount){
+        if(discount_code && isDiscount && discount){ //discount code provided, its valid and user is eligible for discount
             console.log("is eligible")
-           const updated = await Users.updateOne({id: user_id},{$set:{total: discountTotal, no_of_orders: user.no_of_orders + 1}});
-            const updatedUser = await Users.findOne({id: user_id}).select("id first_name last_name email gender cart no_of_orders total ordersHistory -_id")
+            await Users.updateOne({id: user_id},{$set:{total: discountTotal, no_of_orders: user.no_of_orders + 1}});
+            const updatedUser = await Users.findOne({id: user_id}).select("id first_name last_name email gender cart no_of_orders total ordersHistory -_id") //Send all parameters except _id
          
             console.log("updated user", updatedUser)
             res.status(200).json({
@@ -217,7 +216,7 @@ async function generateDiscountCodes(start = 100, end = 110) { //Generates all d
 const getUserDetailsForAdmin = async(req, res) => {
     const {user_id} = req.body;
 
-    const list_of_discount_codes = await generateDiscountCodes()
+    const list_of_discount_codes = await generateDiscountCodes() //gets list of all available discount code for admin to check
     try {
         const user = await Users.findOne({id: user_id});
 
