@@ -204,6 +204,11 @@ const generateOneDiscountCode = async(req, res) => { //discount code send to the
             return
         }
 
+        if(user && user.no_of_orders === 0){
+            res.status(400).send("User has not checked out yet")
+            return
+        }
+
         if(user && user.no_of_orders % 5 === 0){
             const discountCode = await generateUniqueDiscountCode();
 
