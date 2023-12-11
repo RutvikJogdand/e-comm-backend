@@ -2,7 +2,7 @@ const Users = require("../models/users_model")
 const Products = require("../models/products_model");
 const mongoose = require('mongoose');
 
-function isValidDiscountCode(code) {
+async function isValidDiscountCode(code) { //Checks if the discount code is valid
 
     if (!code.startsWith('GROCERY')) {
         return false;
@@ -16,7 +16,7 @@ const generatedCodes = new Set();
 const maxCodes = 110;
 const minCodes = 100;
 
-function generateUniqueDiscountCode() {
+function generateUniqueDiscountCode() { //Generates a unique discount code based on a set pattern
     if (generatedCodes.size >= (maxCodes - minCodes + 1)) {
         throw new Error("All discount codes have been generated");
     }
@@ -58,6 +58,21 @@ const addToCart = async (req, res) => {
             return;
         }
 
+        for (const item of products_arr) {
+            const product = await Products.findOne({ product_id: item.product_id }).session(session);
+
+            if(!product){
+                res.status(400).send("Error updating cart with one or more products because a product you have selected might not exist");
+                return
+            }
+            if (product && product.stock < item.quantity) {
+                // Abort the transaction and respond with an error
+                await session.abortTransaction();
+                session.endSession();
+                return res.status(400).send(`Insufficient stock for product ${item.product_id}`);
+            }
+        }
+
         const productUpdates = products_arr.map(item => ({ //getting an array of required updates ready. Update each product's quantity with reference from user's cart
             updateOne: {
                 filter: { product_id: item.product_id },
@@ -79,7 +94,7 @@ const addToCart = async (req, res) => {
             {
                 $set: {
                     cart: [...products_arr],
-                    no_of_orders: user.no_of_orders + 1,
+                    no_of_orders: user.no_of_orders,
                     total: totalSum,
                     ordersHistory: [
                         ...user.ordersHistory,
@@ -105,36 +120,72 @@ const addToCart = async (req, res) => {
 };
 
 const checkout = async(req, res) => {
-    const {totalSum, user_id, discount_code} = req.body;
+    const {user_id, discount_code} = req.body;
 
-    const user = await Users.findOne({id: user_id})
-
-    if(!user){
-        res.status(404).send("User not found")
+    try {  
+        const user = await Users.findOne({id: user_id})
+    
+        if(!user){
+            res.status(404).send("User not found")
+            return
+        }
+        if(user && discount_code === ''){
+            res.status(200).json({
+                message: "No discount applied",
+                data: user
+            })
+            return 
+        }
+        
+        const NoOfOrders = user.no_of_orders + 1
+        const discount = (NoOfOrders) % 5 === 0;
+        const discountTotal = discount ? user.total -( user.total * 0.1) : user.total;
+    
+        const isDiscount = await isValidDiscountCode(discount_code)
+        console.log('is discount', isDiscount, discount)
+        if (discount_code && !isDiscount) {
+            await Users.updateOne({id: user_id},{$set:{total: discountTotal, no_of_orders: user.no_of_orders + 1}});
+            res.status(200).json({
+                message: "Invalid Discount code",
+                data: user
+            });
+            return
+        }
+        if(discount_code && !isDiscount && discount){
+            await Users.updateOne({id: user_id},{$set:{total: discountTotal, no_of_orders: user.no_of_orders + 1}});
+            res.status(200).json({
+                message: "Eligible for discount but no discount code applied",
+                data: user
+            })
+            return
+        }
+        if(discount_code && isDiscount && !discount){
+            await Users.updateOne({id: user_id},{$set:{total: discountTotal, no_of_orders: user.no_of_orders + 1}});
+            res.status(200).json({
+                message: "Not eligible for discount yet",
+                data: user
+            });
+            return
+        }
+        if(discount_code && isDiscount && discount){
+            console.log("is eligible")
+           const updated = await Users.updateOne({id: user_id},{$set:{total: discountTotal, no_of_orders: user.no_of_orders + 1}});
+            const updatedUser = await Users.findOne({id: user_id}).select("id first_name last_name email gender cart no_of_orders total ordersHistory -_id")
+         
+            console.log("updated user", updatedUser)
+            res.status(200).json({
+                message: "Updated total amount",
+                data: updatedUser
+            });
+            return
+        }  
+    } catch (error) {
+        res.status(500).send("Server error while checkout");
+        return
     }
-
-    const discount = user.no_of_orders % 5 === 0;
-    const discountTotal = discount ? totalSum * 0.1 : totalSum;
-
-    if(discount_code === null || discount_code === ''){
-        res.send("You have not applied any discount");
-    }
-    if (discount_code && !isValidDiscountCode(discount_code)) {
-        res.send("Invalid Discount code");
-    }
-    if(discount_code && isValidDiscountCode(discount_code) && !discount){
-        res.send("Not eligible for discount yet");
-    }
-    if(discount_code && isValidDiscountCode(discount_code) && discount){
-        await Users.update({id: user_id},{$set:{total: discountTotal}});
-
-        user.total = discountTotal;
-
-        res.send("Discount Code Applied");
-    }  
 }
 
-const generateOneDiscountCode = async(req, res) => {
+const generateOneDiscountCode = async(req, res) => { //discount code send to the user on request. Eligibilty checked before
     const {user_id} = req.body
 
     try {
@@ -149,13 +200,13 @@ const generateOneDiscountCode = async(req, res) => {
 
             res.status(200).json(discountCode);
         }
-        
+
     } catch (error) {
         res.status(500).send("Something went wrong while fetching discount code");
     }
 }
 
-function generateDiscountCodes(start = 100, end = 110) { //To be called only when user is eligible for discount
+async function generateDiscountCodes(start = 100, end = 110) { //Generates all discount codes
     const codes = [];
     for (let i = start; i <= end; i++) {
         codes.push('GROCERY' + i);
@@ -168,22 +219,20 @@ const getUserDetailsForAdmin = async(req, res) => {
 
     const list_of_discount_codes = await generateDiscountCodes()
     try {
-
-        if(!user_id){
-            res.status(404).send("This user does not exist");
-        }
         const user = await Users.findOne({id: user_id});
 
         if(!user){
             res.status(404).send("User not found");
         }
 
-        res.send(200).json({
+        res.status(200).json({
+           data: {
             items_purchased: user.cart.length,
             totalAmt: user.total,
             discountedAmt: user.no_of_orders % 5 === 0? (user.total*0.1) : user.total,
             list_of_discount_codes: list_of_discount_codes
-        })
+        }
+    })
         
     } catch (error) {
         res.status(500).send("Server error while fetching user details");
@@ -193,5 +242,9 @@ const getUserDetailsForAdmin = async(req, res) => {
 module.exports = {
     findUser,
     addToCart,
-    checkout
+    checkout,
+    generateOneDiscountCode,
+    getUserDetailsForAdmin,
+    isValidDiscountCode,
+    generateDiscountCodes
 }

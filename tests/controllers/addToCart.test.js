@@ -10,6 +10,7 @@ describe('addToCart Function', () => {
     let mongoServer;
 
     beforeAll(async () => {
+        //Connect to mock server
         mongoServer = await MongoMemoryReplSet.create({
             replSet: { storageEngine: 'wiredTiger' }
         });
@@ -18,6 +19,7 @@ describe('addToCart Function', () => {
     });
 
     afterAll(async () => {
+        //Disconnect server
         await mongoose.disconnect();
         await mongoServer.stop();
     });
@@ -140,4 +142,61 @@ describe('addToCart Function', () => {
 
     });
 
+    test('addToCart should abort as one of the products is not found', async () => {
+        // Mock data
+        const user = {
+            id: "01HGXMEAC37A4R583EH61F70V4",
+            first_name: "Theresina",
+            last_name: "Ipsly",
+            email: "tipsly1@jiathis.com",
+            gender: "Female",
+            cart: [],
+            no_of_orders: 0,
+            total:0,
+            ordersHistory: []
+        };
+        const products = [
+            {
+                product_id: 1,
+                product_name: "Beef - Ox Tongue",
+                price: 635,
+                quantity: 5,
+              },
+              {
+                product_id: "01HGXN5PN8565TF0W27P7BV0FZ",
+                product_name: "Milk - Skim",
+                price: 992,
+                quantity: 5,
+              },
+              {
+                product_id: "01HGXN5PN8G68T9Q68MWR4DCS",
+                product_name: "Cookie Dough - Peanut Butter",
+                price: 312,
+                quantity: 5,
+              },
+        ];
+
+        // Mock request and response
+        const req = {
+            body: {
+                user_id: user.id,
+                products_arr: products,
+            },
+        };
+        const res = {
+            status: jest.fn().mockReturnThis(),
+            send: jest.fn(),
+        };
+
+        // Creating users and products in the database
+        await Promise.all(usersData.map(user => new Users(user).save()))
+        await Promise.all(productsData.map(product => new Products(product).save()));
+
+        await addToCart(req, res);
+
+        // Assertions
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.send).toHaveBeenCalledWith('Error updating cart with one or more products because a product you have selected might not exist');
+
+    });
 });
