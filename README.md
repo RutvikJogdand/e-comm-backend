@@ -1,4 +1,4 @@
-# E-Commerce Backend
+![image](https://github.com/RutvikJogdand/e-comm-backend/assets/63995582/d675d24a-b568-4b4f-a81c-e88ee7e944c7)# E-Commerce Backend
 
 ## Project Description
 
@@ -31,6 +31,10 @@ The API endpoints provided by this backend include:
 - **Product Management**: Add, update, and list products.
 - **Cart Management**: Add items to cart, update cart items, and view cart.
 - **Checkout Process**: Process checkout including discount code application.
+
+## Testing
+
+For testing, please navigate to: tests/controllers and run: <b> npx jest <file>.test.js </b>
 
 ## Features
 - CRUD operations for products.
