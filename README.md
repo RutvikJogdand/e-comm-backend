@@ -1,5 +1,3 @@
-![image](https://github.com/RutvikJogdand/e-comm-backend/assets/63995582/d675d24a-b568-4b4f-a81c-e88ee7e944c7)# E-Commerce Backend
-
 ## Project Description
 
 This project is the backend for an e-commerce application built using Express.js and MongoDB. It provides a robust API for user management, product management, shopping cart functionality, and checkout processes, including discount code validation.
