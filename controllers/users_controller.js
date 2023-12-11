@@ -136,6 +136,10 @@ const checkout = async(req, res) => {
             })
             return 
         }
+        if(user && user.cart.length === 0){
+            res.status(400).send("Empty Cart")
+            return
+        }
         
         const NoOfOrders = user.no_of_orders + 1
         const discount = (NoOfOrders) % 5 === 0;
