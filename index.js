@@ -3,7 +3,6 @@ const mongoose = require("mongoose")
 const dotenv = require("dotenv")
 const cors = require('cors')
 const bodyParser = require("body-parser")
-const { MongoClient } = require('mongodb');
 // Data:
 const usersData = require("./users")
 const productsData = require("./products")

@@ -128,6 +128,10 @@ const checkout = async(req, res) => {
             res.status(404).send("User not found") //No user found
             return
         }
+        if(user && user.cart.length === 0){
+            res.status(400).send("Empty Cart")
+            return
+        }
         if(user && discount_code === ''){
             await Users.updateOne({id: user_id},{$set:{no_of_orders: user.no_of_orders + 1}});
             res.status(200).json({
@@ -135,10 +139,6 @@ const checkout = async(req, res) => {
                 data: user
             })
             return 
-        }
-        if(user && user.cart.length === 0){
-            res.status(400).send("Empty Cart")
-            return
         }
         
         const NoOfOrders = user.no_of_orders + 1
@@ -193,15 +193,22 @@ const generateOneDiscountCode = async(req, res) => { //discount code send to the
 
     try {
         const user = await Users.findOne({id: user_id})
-
+        
         if(!user){
             res.status(404).send("User not found")
+            return
         }
 
-        if(user.no_of_orders % 5 === 0){
+        if(user && user.cart.length === 0 ){
+            res.status(400).send("Empty Cart")
+            return
+        }
+
+        if(user && user.no_of_orders % 5 === 0){
             const discountCode = await generateUniqueDiscountCode();
 
             res.status(200).json(discountCode);
+            return
         }
 
     } catch (error) {
@@ -226,6 +233,7 @@ const getUserDetailsForAdmin = async(req, res) => {
 
         if(!user){
             res.status(404).send("User not found");
+            return
         }
 
         res.status(200).json({
@@ -234,8 +242,10 @@ const getUserDetailsForAdmin = async(req, res) => {
             totalAmt: user.total,
             discountedAmt: user.no_of_orders % 5 === 0? (user.total*0.1) : user.total,
             list_of_discount_codes: list_of_discount_codes
-        }
-    })
+            }
+        })
+
+        return
         
     } catch (error) {
         res.status(500).send("Server error while fetching user details");
