@@ -244,8 +244,8 @@ const getUserDetailsForAdmin = async(req, res) => {
         res.status(200).json({
            data: {
             items_purchased: user.cart.length,
-            totalAmt: user.total,
-            discountedAmt: user.no_of_orders % 5 === 0? (user.total*0.1) : user.total,
+            totalAmt: `$${user.total/100}`,
+            discountedAmt: user.no_of_orders % 5 === 0? `$${(user.total*0.1)}` : `${user.total}`,
             list_of_discount_codes: list_of_discount_codes
             }
         })
