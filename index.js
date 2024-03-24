@@ -48,6 +48,7 @@ db.once("open", async (req, result) => {
     return;
   }
    await Products.insertMany(productsData)
+   console.log("products inserted")
 });
 
 app.listen(5000, () => {
