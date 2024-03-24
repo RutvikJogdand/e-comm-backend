@@ -1,5 +1,3 @@
-# E-Commerce Backend
-
 ## Project Description
 
 This project is the backend for an e-commerce application built using Express.js and MongoDB. It provides a robust API for user management, product management, shopping cart functionality, and checkout processes, including discount code validation.
@@ -31,6 +29,10 @@ The API endpoints provided by this backend include:
 - **Product Management**: Add, update, and list products.
 - **Cart Management**: Add items to cart, update cart items, and view cart.
 - **Checkout Process**: Process checkout including discount code application.
+
+## Testing
+
+For testing, please navigate to: tests/controllers and run: <b> npx jest *filename*.test.js </b>
 
 ## Features
 - CRUD operations for products.
